@@ -1,19 +1,21 @@
 '''
 Created on 23.03.2015
 
-@author: Salaxy
+ modified class from nao choregraphe
+
+@author: Andy Klay
 '''
 import sys
+import time
 
 from naoqi import ALProxy
 
 
 class Speech():
     
-    WORD_LIST = 
-    VISUAL_EXPRESSION =
-    ENABLE_WORD_SPOTTING = 
-    
+    WORD_LIST = "yes;no;okay"
+    VISUAL_EXPRESSION = True
+    ENABLE_WORD_SPOTTING = False
     "Confidence threshold (%)"
     CONFIDENCE_THRESHOLD = 30
     
@@ -34,7 +36,9 @@ class Speech():
         self.mutex = Lock()
         self.hasPushed = False
         self.hasSubscribed = False
-        '''self.BIND_PYTHON(self.getName(), "onWordRecognized")'''
+        self.BIND_PYTHON(self.getName(), "onWordRecognized")
+        
+        self.isWordSaid = False
 
     '''  dannach wenn alles fertig ist'''
     def onUnload(self):
@@ -62,11 +66,11 @@ class Speech():
         self.bIsRunning = True
         try:
             if self.asr:
-                self.asr.setVisualExpression(VISUAL_EXPRESSION)
+                self.asr.setVisualExpression(self.VISUAL_EXPRESSION)
                 self.asr.pushContexts()
             self.hasPushed = True
             if self.asr:
-                self.asr.setVocabulary(WORD_LIST.split(';'), ENABLE_WORD_SPOTTING)
+                self.asr.setVocabulary(self.WORD_LIST.split(';'), self.ENABLE_WORD_SPOTTING)
             self.memory.subscribeToEvent("WordRecognized", self.getName(), "onWordRecognized")
             self.hasSubscribed = True
         except RuntimeError, e:
@@ -82,11 +86,20 @@ class Speech():
 
     ''' methode die aufgerufen wird wenn was kommt '''
     def onWordRecognized(self, key, value, message):
-        if(len(value) > 1 and value[1] >= CONFIDENCE_THRESHOLD / 100.):
+        if(len(value) > 1 and value[1] >= self.CONFIDENCE_THRESHOLD / 100.):
             self.wordRecognized(value[0])  # ~ activate output of the box
         else:
             self.onNothing()
 
+    def onNothing(self):
+        print "nothing recognized"
+        
+    def wordRecognized(self, wordRecognized):
+        self.isWordSaid = True
+        print wordRecognized
+
+    def isSearchedWordSaid(self):
+        return self.isWordSaid
 
 if __name__ == '__main__':
     
@@ -99,4 +112,11 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         IP = sys.argv[1]
         
+        
     s = Speech(IP, PORT)
+    s.onLoad()
+    s.onInput_onStart()
+    time.sleep(1.0)
+    s.onInput_onStop()
+    print str(s.isSearchedWordSaid())
+    
