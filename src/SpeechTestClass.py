@@ -23,6 +23,7 @@ class Speech():
     def __init__(self, IP, PORT):
         try:
             self.asr = ALProxy("ALSpeechRecognition", IP, PORT)
+            self.asr.setLanguage("English")
         except Exception as e:
             self.asr = None
             self.logger.error(e)
@@ -113,10 +114,14 @@ if __name__ == '__main__':
         IP = sys.argv[1]
         
         
+    tts = ALProxy("ALTextToSpeech", IP, PORT)
+    tts.say("test")
+    time.sleep(2.0)    
     s = Speech(IP, PORT)
     s.onLoad()
     s.onInput_onStart()
-    time.sleep(1.0)
+    time.sleep(15.0)
+    tts.say("okay")
     s.onInput_onStop()
     print str(s.isSearchedWordSaid())
     
