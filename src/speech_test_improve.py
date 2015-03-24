@@ -18,35 +18,30 @@ memory = None
 
 class ReactToTouch(ALModule):
     
-    WORD_LIST = "yes;no;okay"
+    #WORD_LIST = "yes;no;okay"
     VISUAL_EXPRESSION = True
     ENABLE_WORD_SPOTTING = True
     "Confidence threshold (%)"
     CONFIDENCE_THRESHOLD = 5
     
-    #lastWords = None
-    
     """ A simple module able to react
-        to touch events.
-    """
-    def __init__(self, name):
+        to touch events. """
+    def __init__(self, name, wordList):
         ALModule.__init__(self, name)
         # No need for IP and port here because
         # we have our Python broker connected to NAOqi broker
 
-        # Create a proxy to ALTextToSpeech for later use
-        self.tts = ALProxy("ALTextToSpeech")
+        # Create a proxy for later use
         self.asr = ALProxy("ALSpeechRecognition")
         self.asr.pause(True)
-        self.asr.setVocabulary(self.WORD_LIST.split(';'), self.ENABLE_WORD_SPOTTING)
+        self.asr.setVocabulary(wordList.split(';'), self.ENABLE_WORD_SPOTTING)
         self.asr.pause(False)
+        self.lastWord = "none"
+        self.isWordRecognized = False
 
         # Subscribe to TouchChanged event:
         global memory
         memory = ALProxy("ALMemory")
-        #memory.subscribeToEvent("TouchChanged",
-        #   "ReactToTouch",
-        #  "onTouched")
         memory.subscribeToEvent("WordRecognized",
             "ReactToTouch",
             "onWordRecognized")
@@ -61,7 +56,8 @@ class ReactToTouch(ALModule):
         if(len(value) > 1 and value[1] >= self.CONFIDENCE_THRESHOLD / 100.):
             self.wordRecognized(value[0])  # ~ activate output of the box
             #self.lastWords = copy(value)
-            self.lastWords = value [0]
+            self.lastWord = value [0]
+            self.isWordRecognized = True   
         else:
             self.onNothing()
             
@@ -77,14 +73,15 @@ class ReactToTouch(ALModule):
         self.isWordSaid = True
         print "this is recoqnized " + wordRecognized
         
-    def getWords(self):
-        return self.lastWords
-        
-    def isSearchedWordSaid(self):
-        return self.isWordSaid
+    def getLastWord(self):
+        return self.lastWord
+    
+    #def isWordRecognized(self):
+    #    return self.isWordRecognized
+    #    
 
 
-def main(ip, port):
+def waitUntilWordWasRecognized(ip, port, wordsToRecoqnize):
     """ Main entry point
     """
     # We need this broker to be able to construct
@@ -98,19 +95,29 @@ def main(ip, port):
 
 
     global ReactToTouch
-    ReactToTouch = ReactToTouch("ReactToTouch")
+    ReactToTouch = ReactToTouch("ReactToTouch", wordsToRecoqnize)
+    
+    isRecognized = False
 
-    time.sleep(10)
+    # wait until something is recognized
+    while(not ReactToTouch.isWordRecognized): 
+        time.sleep(5)
     
-    print "this is said: " + ReactToTouch.getWords()
+    print "this is said: " + ReactToTouch.getLastWord()
     
-    lastWord = ReactToTouch.getWords()
+    lastWord = ReactToTouch.getLastWord()
+    
+    wordList = wordsToRecoqnize.split(';')
+    
+    for i in range(len(wordList)):
+        if lastWord.find(wordList[i]):
+            print wordList[i]
+            isRecognized = True
          
-        
-    if lastWord.find("is") == -1:
-        print "its was yes"
-    else:
-        print "its was no"
+    #if lastWord.find("is") == -1:
+    #    print "its was yes"
+    #else:
+    #    print "its was no"
 
     #try:
     #    while True:
@@ -121,6 +128,8 @@ def main(ip, port):
     #    print "Interrupted by user, shutting down"
     #    myBroker.shutdown()
     #    sys.exit(0)
+    
+    return isRecognized
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -129,4 +138,4 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=9559,
                         help="Robot port number")
     args = parser.parse_args()
-    main(args.ip, args.port)
+    print "it was: " + str(waitUntilWordWasRecognized(args.ip, args.port, "yes;no;okay"))
